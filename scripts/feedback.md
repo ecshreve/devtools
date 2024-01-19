@@ -1,0 +1,9 @@
+- There are no apparent typos in the code.  
+- There might be a potential bug in the `feedback.fish` file. The `mods` command and its options `--fanciness 4 --temp .4` are not standard fish or git commands. Unless `mods` is a function or a command defined elsewhere in your environment, this line will cause an error.  
+- In the `get-feedback.sh` file, the `gum` command is checked as a required command, but it's not used anywhere in the script. If it's not necessary, you should remove it from the `check_required_commands` function.  
+- The `get_feedback` function in the `get-feedback.sh` file also uses the `mods` command, which, as mentioned above, could cause an error if it's not defined elsewhere in your environment.  
+- Both scripts lack comments explaining what they do. While the code is relatively straightforward, it's still good practice to include comments for clarity.  
+- It's a good practice to handle the cleanup of temporary files that your script might create. If the `mods` command creates a temporary file (as suggested by the `--temp .4` option), ensure you handle its deletion once it's no longer needed.  
+- The `get-feedback.sh` script checks for an `OPENAI_API_KEY` environment variable, but it doesn't seem to use it. If it's not necessary, consider removing this check. If it is necessary, make sure to use it where needed.  
+- The `get_feedback` function in both scripts pipes the output of the `git diff` command to `glow -`. If `glow` is not installed or not in the user's PATH, this will cause an error. Consider checking for the existence of `glow` in your `check_required_commands` function.   
+- In `get-feedback.sh`, consider making the script executable with the command `chmod +x get-feedback.sh` if it isn't already. This isn't visible in the diff, but it's necessary for running the script. 
