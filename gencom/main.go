@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/kr/pretty"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -22,24 +22,33 @@ func main() {
 	checkRequiredCommands([]string{"git", "less"})
 	checkOpenAIKey()
 
-	wrk := Worker{
-		git:    MockGitCommand{},
-		openai: OpenAIClient{},
-	}
+	// Get the git diff
+	diff, _ := MockGitCommand{}.GetDiff()
+	log.Debug("before processing", "len", len(diff))
 
-	diff, err := wrk.git.GetDiff()
-	if err != nil {
-		log.Error("Error getting git diff:", err)
-		os.Exit(1)
-	}
-	log.Debug(strings.Join(strings.Split(diff[:100], "\n"), ""))
+	proc := summarizeDiff(diff)
+	log.Debug("after processing", "len", len(proc))
+	pretty.Println(proc)
+	// wrk := Worker{
+	// 	git: MockGitCommand{},
+	// 	openai: OpenAIClient{
+	// 		Client: *openai.NewClient(os.Getenv("OPENAI_API_KEY")),
+	// 	},
+	// }
 
-	commitMessage, err := wrk.openai.GenerateCommitMessage(diff)
-	if err != nil {
-		log.Error(err)
-		os.Exit(1)
-	}
-	log.Debug(commitMessage)
+	// diff, err := wrk.git.GetDiff()
+	// if err != nil {
+	// 	log.Error("Error getting git diff:", err)
+	// 	os.Exit(1)
+	// }
+	// log.Debug(strings.Join(strings.Split(diff[:100], "\n"), ""))
+
+	// commitMessage, err := wrk.openai.GenerateCommitMessage(diff)
+	// if err != nil {
+	// 	log.Error(err)
+	// 	os.Exit(1)
+	// }
+	// log.Debug(commitMessage)
 
 }
 
