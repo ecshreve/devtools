@@ -36,7 +36,7 @@ Format the response as a JSON dictionary:
   "BODY": "<body>",
   "TYPE": "<type>",
   "SCOPE": "<scope>",
-	"PRETTY": "<pretty>",
+  "PRETTY": "<pretty>",
 }
 `
 	p := fmt.Sprintf(promptTemplate, diff)
