@@ -1,9 +1,12 @@
-package main
+package gencom_test
 
-import "testing"
+import (
+	"gencom"
+	"testing"
+)
 
 func TestGenerateCommitMessage(t *testing.T) {
-	openai := MockOpenAIClient{}
+	openai := gencom.MockOpenAIClient{}
 	diff := "mocked git diff output"
 	commitMessage, err := openai.GenerateCommitMessage(diff)
 	if err != nil {

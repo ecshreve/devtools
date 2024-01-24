@@ -1,13 +1,14 @@
-package main
+package gencom_test
 
 import (
+	"gencom"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetGitDiff(t *testing.T) {
-	git := MockGitCommand{}
+	git := gencom.MockGitCommand{}
 	diff, err := git.GetDiff()
 	assert.NoError(t, err)
 

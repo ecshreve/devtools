@@ -1,4 +1,4 @@
-package main
+package gencom
 
 import (
 	"bufio"
@@ -17,9 +17,15 @@ type GitInterface interface {
 
 type GitCommand struct{}
 
+func NewGitCommand() GitInterface {
+	return GitCommand{}
+}
+
 func (g GitCommand) GetDiff() (string, error) {
+	log.Info("GitCommand.GetDiff")
 	cmd := exec.Command("git", "diff", "--cached", "--unified=0")
 	output, err := cmd.Output()
+	log.Info("GitCommand.GetDiff", "output", string(output), "err", err)
 	return string(output), err
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"gencom"
 	"os"
 	"os/exec"
 	"strings"
@@ -68,7 +69,8 @@ type Model struct {
 	lg     *lipgloss.Renderer
 	styles *Styles
 	form   *huh.Form
-	comm   *Commit
+	comm   *gencom.Commit
+	wrk    *gencom.Worker
 	width  int
 }
 
@@ -88,9 +90,9 @@ func NewModel() Model {
 	m.lg = lipgloss.DefaultRenderer()
 	m.styles = NewStyles(m.lg)
 
-	newCommit := GenComStruct()
-	m.comm = &newCommit
-
+	m.wrk = gencom.NewWorker()
+	newCommit := m.wrk.Run()
+	m.comm = newCommit
 	shortCircuit := false
 	m.form = huh.NewForm(
 		huh.NewGroup(
@@ -207,7 +209,7 @@ func (m Model) View() string {
 
 	switch m.form.State {
 	case huh.StateCompleted:
-		return s.Status.Copy().Margin(0, 1).Padding(1, 2).Width(48).Render(m.form.GetString("desc")) + "\n\n"
+		return s.Status.Copy().Margin(0, 1).Padding(1, 2).Width(80).Render(m.comm.String()) + "\n\n"
 	default:
 
 		// Form (left side)
@@ -218,16 +220,16 @@ func (m Model) View() string {
 		var status string
 		{
 
-			const statusWidth = 80
+			const statusWidth = 74
 			statusMarginLeft := m.width - statusWidth - lipgloss.Width(form) - s.Status.GetMarginRight()
 			status = s.Status.Copy().
 				Height(lipgloss.Height(m.comm.String())).
 				Width(statusWidth).
 				MarginLeft(statusMarginLeft).
 				Render(s.StatusHeader.Render("Current Build") + "\n" +
-					"|============================================ 50 >|" + "\n" +
+					"|------------------------------------------- 50 >|" + "\n" +
 					m.comm.String() + "\n" +
-					"|================================================================= 72 >|")
+					"|----------------------------------------------------------------- 72 >|")
 
 		}
 
@@ -276,6 +278,9 @@ func (m Model) appErrorBoundaryView(text string) string {
 }
 
 func main() {
+	log.SetLevel(log.DebugLevel)
+	log.SetReportCaller(true)
+
 	_, err := tea.NewProgram(NewModel()).Run()
 	if err != nil {
 		fmt.Println("Oh no:", err)
@@ -289,53 +294,4 @@ var typeOptions = []huh.Option[string]{
 	huh.NewOption("docs", "docs"),
 	huh.NewOption("test", "test"),
 	huh.NewOption("refactor", "refactor"),
-}
-
-type Commit struct {
-	Type             string
-	Scope            string
-	Desc             string
-	Body             string
-	Footer           string
-	DoesWantToCommit bool
-}
-
-// Message returns the commit message.
-func (c Commit) MessageString() *string {
-	out := c.Type
-	if c.Scope != "" {
-		out = fmt.Sprintf("%s(%s)", out, c.Scope)
-	}
-	out += ": " + c.Desc
-
-	return &out
-}
-
-func (c Commit) String() string {
-	out := *c.MessageString()
-
-	if c.Body != "" {
-		out += "\n\n" + c.Body
-	}
-
-	if c.Footer != "" {
-		out += "\n\n" + c.Footer
-	}
-
-	return out
-}
-
-func GenComStruct() Commit {
-	return Commit{
-		Type:  "feat",
-		Scope: "gencom",
-		Desc:  "Add bubbletea interface",
-		Body: `Added bubbletea interface to gencom. This will allow for a more 
-interactive experience when generating commit messages.
-
-- Added bubbletea interface
-- Added a new state machine to handle the bubbletea interface
-- Added form to handle user input`,
-		Footer: "",
-	}
 }
