@@ -11,6 +11,8 @@ import (
 type Worker struct {
 	git    GitInterface
 	openai OpenAIInterface
+
+	CommitData *Commit
 }
 
 func NewWorker() *Worker {
@@ -37,35 +39,37 @@ func NewWorker() *Worker {
 	}
 }
 
-func (w *Worker) Run() *Commit {
+func (w *Worker) Run() error {
 	log.Info("Worker.Run")
 	// Get the git diff
 	diff, err := w.git.GetDiff()
 	if err != nil {
 		log.Error("Error getting git diff", "err", err)
-		return nil
+		return err
 	}
-	log.Debug("before processing", "len", len(diff))
 
+	log.Debug("before processing", "len", len(diff))
 	proc := summarizeDiff(diff)
 	log.Debug("after processing", "len", len(proc))
 
 	// Generate the commit message
 	commitMessage, err := w.openai.GenerateCommitMessage(proc)
 	if err != nil {
-		log.Error("Error generating commit message", "err", err)
-		return nil
+		log.Error("Error generating commit message", "err", err, "commitMessage", commitMessage)
+		return err
 	}
 
 	var cmt Commit
 	err = json.Unmarshal([]byte(commitMessage), &cmt)
 	if err != nil {
 		log.Error("Error unmarshalling commit", "err", err)
-		return nil
+		return err
 	}
 
 	cmt.Body = foldString(cmt.Body, 72)
-	return &cmt
+	w.CommitData = &cmt
+	log.Debug("Worker.Run", "commit", w.CommitData)
+	return nil
 }
 
 func checkRequiredCommands(cmds []string) {

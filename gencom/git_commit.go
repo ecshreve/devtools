@@ -60,7 +60,7 @@ interactive experience when generating commit messages.
 }
 
 func Execute(c *Commit) (string, error) {
-	log.Info("commit")
+	log.Info("Execute")
 	msg, body, _ := c.Parts()
 	args := []string{"commit", "-m", msg}
 	if body != "" {
@@ -72,6 +72,6 @@ func Execute(c *Commit) (string, error) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	log.Debug("commit", "cmd", cmd)
+	log.Debug("Execute", "cmd", fmt.Sprintf("git %v", args))
 	return fmt.Sprintf("git %v", args), cmd.Run()
 }

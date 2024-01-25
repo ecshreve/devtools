@@ -150,6 +150,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "ctrl+c", "q":
+			DoneChan <- struct{}{}
 			return m, tea.Quit
 		}
 	}
@@ -275,26 +276,41 @@ func main() {
 		log.Info("Starting gencom")
 		defer log.Info("Exiting gencom")
 
-		recv := <-CommitBuilderChan
-		toCommit = &recv
-		_, err := tea.NewProgram(NewModel()).Run()
-		if err != nil {
-			log.Fatal("Error running program", "err", err)
+		for {
+			select {
+			case <-DoneChan:
+				return
+			case recv := <-CommitBuilderChan:
+				toCommit = &recv
+				_, err := tea.NewProgram(NewModel()).Run()
+				if err != nil {
+					log.Fatal("Error running program", "err", err)
+				}
+				CommitReadyChan <- struct{}{}
+			}
 		}
-
-		CommitReadyChan <- struct{}{}
 	}()
 
 	go func() {
 		log.Info("Waiting for commit")
-		<-CommitReadyChan
-		log.Info("Running git commit")
-		_, err := gencom.Execute(toCommit)
-		if err != nil {
-			log.Error("Error running git commit", "err", err)
+		for {
+			select {
+			case <-DoneChan:
+				return
+			case <-CommitReadyChan:
+				if !useCommit {
+					log.Info("Skipping commit")
+					DoneChan <- struct{}{}
+					continue
+				}
+				log.Info("Running git commit")
+				_, err := gencom.Execute(toCommit)
+				if err != nil {
+					log.Error("Error running git commit", "err", err)
+				}
+				DoneChan <- struct{}{}
+			}
 		}
-		DoneChan <- struct{}{}
-		log.Info("Done running git commit")
 	}()
 
 	<-DoneChan

@@ -26,12 +26,14 @@ func NewOpenAIClient() OpenAIInterface {
 func (o OpenAIClient) GenerateCommitMessage(diff string) (string, error) {
 	log.Info("OpenAIClient.GenerateCommitMessage")
 	const promptTemplate = `Analyze the following git diff of a codebase and generate
-a concise informative commit message. Focus on the intention  behind the changes and 
-the impact on the project. Generate the message in JSON format with the following details:
-- DESC: A concise description containing 40 characters or less.
+a concise informative commit message. Focus on the intention behind the changes and 
+the impact on the project.
+
+Generate output with the following details:
+- DESC: A concise summary containing no more than 34 characters.
 - BODY: A detailed explanation of the changes suitable for the body of a git commit message.
-- TYPE: Classify this change as one of the [fix, feat, test, docs, refactor, chore].
-- SCOPE: Provide one word describing the area of the codebase most affected.
+- TYPE: Classification of this set of changes as one of [fix, feat, test, docs, refactor, chore].
+- SCOPE: The area of the codebase most affected.
 
 Git Diff:
 %s
@@ -49,7 +51,7 @@ Format the response as a JSON dictionary:
 	req := openai.ChatCompletionRequest{
 		Model:     openai.GPT3Dot5Turbo,
 		Seed:      nil,
-		MaxTokens: 1024,
+		MaxTokens: 2048,
 		Messages: []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleSystem,
