@@ -1,6 +1,7 @@
 package gencom
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -38,6 +39,7 @@ func NewWorker() *Worker {
 }
 
 func (w *Worker) Run() *Commit {
+	log.Info("Worker.Run")
 	// Get the git diff
 	diff, err := w.git.GetDiff()
 	if err != nil {
@@ -56,7 +58,15 @@ func (w *Worker) Run() *Commit {
 		os.Exit(1)
 	}
 
-	return stringToCommit(commitMessage)
+	var cmt Commit
+	err = json.Unmarshal([]byte(commitMessage), &cmt)
+	if err != nil {
+		log.Error("Error unmarshalling commit", "err", err)
+		return nil
+	}
+
+	cmt.Body = foldString(cmt.Body, 72)
+	return &cmt
 }
 
 func checkRequiredCommands(cmds []string) {

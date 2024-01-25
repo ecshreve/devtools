@@ -3,6 +3,8 @@ package gencom
 import (
 	"os"
 	"strings"
+
+	"github.com/charmbracelet/log"
 )
 
 // GetDiffFromFile reads a file containing a git diff and returns it as a string.
@@ -14,6 +16,7 @@ func GetDiffFromFile(filename string) (string, error) {
 
 // foldString wraps the input string at the given column (72 in this case)
 func foldString(s string, lineWidth int) string {
+	log.Info("foldString")
 	words := strings.Fields(s)
 	if len(words) == 0 {
 		return ""

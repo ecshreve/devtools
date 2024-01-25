@@ -2,7 +2,6 @@ package gencom
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -63,25 +62,9 @@ Format the response as a JSON dictionary:
 	if err != nil {
 		return "", err
 	}
-
 	log.Debug("OpenAIClient.GenerateCommitMessage", "resp", resp)
+
 	return resp.Choices[0].Message.Content, nil
-}
-
-func stringToCommit(s string) *Commit {
-	log.Info("stringToCommit", "s", s)
-	var cmt Commit
-	err := json.Unmarshal([]byte(s), &cmt)
-	if err != nil {
-		log.Error("Error unmarshalling commit", "err", err)
-		return nil
-	}
-
-	log.Debug("stringToCommit BEFORE", "cmt", cmt)
-	cmt.Desc = foldString(cmt.Desc, 48-len(cmt.Type)-len(cmt.Scope))
-	cmt.Body = foldString(cmt.Body, 72)
-	log.Debug("stringToCommit AFTER", "cmt", cmt)
-	return &cmt
 }
 
 type MockOpenAIClient struct{}

@@ -20,6 +20,9 @@ var (
 	red    = lipgloss.AdaptiveColor{Light: "#FE5F86", Dark: "#FE5F86"}
 	indigo = lipgloss.AdaptiveColor{Light: "#5A56E0", Dark: "#7571F9"}
 	green  = lipgloss.AdaptiveColor{Light: "#02BA84", Dark: "#02BF87"}
+
+	shortCircuit = false
+	useCommit    = false
 )
 
 type Styles struct {
@@ -57,15 +60,7 @@ func NewStyles(lg *lipgloss.Renderer) *Styles {
 	return &s
 }
 
-type state int
-
-const (
-	statusNormal state = iota
-	stateDone
-)
-
 type Model struct {
-	state  state
 	lg     *lipgloss.Renderer
 	styles *Styles
 	form   *huh.Form
@@ -76,6 +71,7 @@ type Model struct {
 
 // commit commits the changes to git
 func commit(msg string) (string, error) {
+	log.Info("commit")
 	args := append([]string{"commit", "-m", msg}, os.Args[1:]...)
 	cmd := exec.Command("git", args...)
 	cmd.Stdin = os.Stdin
@@ -86,6 +82,7 @@ func commit(msg string) (string, error) {
 }
 
 func NewModel() Model {
+	log.Info("NewModel")
 	m := Model{width: maxWidth}
 	m.lg = lipgloss.DefaultRenderer()
 	m.styles = NewStyles(m.lg)
@@ -93,37 +90,34 @@ func NewModel() Model {
 	m.wrk = gencom.NewWorker()
 	newCommit := m.wrk.Run()
 	m.comm = newCommit
-	shortCircuit := false
+
 	m.form = huh.NewForm(
 		huh.NewGroup(
 			huh.NewConfirm().
-				Title("Ready to commit").
-				Inline(true).
-				Affirmative("Yes!").
-				Negative("Nope.").
+				Title("Skip editing?").
 				Value(&shortCircuit),
 		),
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Type").
 				Options(typeOptions...).
-				Value(&newCommit.Type),
+				Value(&newCommit.Type).WithHeight(3),
 			huh.NewInput().
 				Title("Scope").
 				CharLimit(16).
+				Inline(true).
 				Value(&newCommit.Scope),
 			huh.NewInput().
-				Description(fmt.Sprint(func() int { return 48 - len(newCommit.Type) - len(newCommit.Scope) }())).
-				Value(&newCommit.Desc).
 				Title("Desc").
-				CharLimit(func() int { return 48 - len(newCommit.Type) - len(newCommit.Scope) }()).
+				Inline(true).
+				Value(&newCommit.Desc).
 				Validate(func(s string) error {
 					if len(s) < 10 {
 						return fmt.Errorf("summary must be at least 10 characters")
 					}
 
 					if len(s) > 48-len(newCommit.Type)-len(newCommit.Scope) {
-						return fmt.Errorf("summary must be less than 48 characters")
+						return fmt.Errorf("summary line must be less than 50 characters")
 					}
 
 					return nil
@@ -131,12 +125,8 @@ func NewModel() Model {
 			huh.NewText().
 				Value(&newCommit.Body).
 				Title("Body").
-				Lines(8).
+				Lines(4).
 				Validate(func(s string) error {
-					if len(s) < 10 {
-						return fmt.Errorf("body must be at least 10 characters")
-					}
-
 					for _, l := range strings.Split(s, "\n") {
 						if len(l) > 72 {
 							return fmt.Errorf("body line length must be less than 72 characters")
@@ -144,24 +134,14 @@ func NewModel() Model {
 					}
 					return nil
 				}),
+		).WithHideFunc(func() bool { return shortCircuit }),
+		huh.NewGroup(
 			huh.NewConfirm().
 				Title("Ready to commit").
-				Inline(true).
-				Affirmative("Yes!").
-				Negative("Nope.").
-				Value(&newCommit.DoesWantToCommit),
+				Value(&useCommit),
 		),
 	).WithWidth(80).WithShowErrors(false).WithShowHelp(false)
 
-	if newCommit.DoesWantToCommit {
-		commitMsg := shellescape.Quote(newCommit.String())
-
-		cmd, err := commit(commitMsg)
-		if err != nil {
-			log.Error("error committing", "err", err, "cmd", cmd)
-			os.Exit(1)
-		}
-	}
 	return m
 }
 
@@ -209,7 +189,18 @@ func (m Model) View() string {
 
 	switch m.form.State {
 	case huh.StateCompleted:
-		return s.Status.Copy().Margin(0, 1).Padding(1, 2).Width(80).Render(m.comm.String()) + "\n\n"
+		// Commit the changes
+		msg, err := commit(m.comm.String())
+		if err != nil {
+			log.Error("Error committing changes", "err", err, "msg", msg)
+			os.Exit(1)
+		}
+
+		// Quit when the form is done.
+		return s.Base.Render(
+			m.appBoundaryView("Commit Message") + "\n" +
+				msg + "\n\n")
+
 	default:
 
 		// Form (left side)
@@ -226,11 +217,9 @@ func (m Model) View() string {
 				Height(lipgloss.Height(m.comm.String())).
 				Width(statusWidth).
 				MarginLeft(statusMarginLeft).
-				Render(s.StatusHeader.Render("Current Build") + "\n" +
-					"|------------------------------------------- 50 >|" + "\n" +
-					m.comm.String() + "\n" +
-					"|----------------------------------------------------------------- 72 >|")
-
+				Render(s.StatusHeader.Render("|------------------------------------------- 50 >|" + "\n|\n" +
+					m.comm.String() + "\n|\n" +
+					"|----------------------------------------------------------------- 72 >|"))
 		}
 
 		errors := m.form.Errors()
@@ -238,7 +227,7 @@ func (m Model) View() string {
 		if len(errors) > 0 {
 			header = m.appErrorBoundaryView(m.errorView())
 		}
-		body := lipgloss.JoinHorizontal(lipgloss.Top, form, status)
+		body := lipgloss.JoinHorizontal(lipgloss.Top, status, form)
 
 		footer := m.appBoundaryView(m.form.Help().ShortHelpView(m.form.KeyBinds()))
 		if len(errors) > 0 {
@@ -280,6 +269,17 @@ func (m Model) appErrorBoundaryView(text string) string {
 func main() {
 	log.SetLevel(log.DebugLevel)
 	log.SetReportCaller(true)
+	if os.Getenv("GENCOM_ENV") == "dev" {
+		f, err := tea.LogToFile("debug.log", "debug")
+		if err != nil {
+			fmt.Println("fatal:", err)
+			os.Exit(1)
+		}
+		log.SetOutput(f)
+		defer f.Close()
+	}
+
+	log.Print("Starting gencom")
 
 	_, err := tea.NewProgram(NewModel()).Run()
 	if err != nil {
