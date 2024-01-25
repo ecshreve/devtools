@@ -2,7 +2,6 @@ package gencom
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 
@@ -44,7 +43,7 @@ func (w *Worker) Run() *Commit {
 	diff, err := w.git.GetDiff()
 	if err != nil {
 		log.Error("Error getting git diff", "err", err)
-		os.Exit(1)
+		return nil
 	}
 	log.Debug("before processing", "len", len(diff))
 
@@ -55,7 +54,7 @@ func (w *Worker) Run() *Commit {
 	commitMessage, err := w.openai.GenerateCommitMessage(proc)
 	if err != nil {
 		log.Error("Error generating commit message", "err", err)
-		os.Exit(1)
+		return nil
 	}
 
 	var cmt Commit
@@ -74,25 +73,13 @@ func checkRequiredCommands(cmds []string) {
 	for _, cmd := range cmds {
 		_, err := exec.LookPath(cmd)
 		if err != nil {
-			log.Error("command is not installed.", "cmd", cmd)
-			os.Exit(1)
+			log.Fatal("command is not installed.", "cmd", cmd)
 		}
 	}
 }
 
 func checkOpenAIKey() {
 	if os.Getenv("OPENAI_API_KEY") == "" {
-		fmt.Println("OPENAI_API_KEY environment variable is not set.")
-		os.Exit(1)
+		log.Fatal("OPENAI_API_KEY environment variable is not set.")
 	}
-}
-
-func getGitDiff() string {
-	cmd := exec.Command("git", "diff", "--cached", "--unified=0")
-	output, err := cmd.Output()
-	if err != nil {
-		fmt.Println("Error getting git diff:", err)
-		os.Exit(1)
-	}
-	return string(output)
 }

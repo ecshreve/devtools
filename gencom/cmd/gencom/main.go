@@ -69,16 +69,34 @@ type Model struct {
 	width  int
 }
 
-// commit commits the changes to git
-func commit(msg string) (string, error) {
+func commit(msg string, body string) (string, error) {
 	log.Info("commit")
 	args := append([]string{"commit", "-m", msg}, os.Args[1:]...)
+	if body != "" {
+		args = append(args, "-m", body)
+	}
 	cmd := exec.Command("git", args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	return fmt.Sprintf("git %v", shellescape.QuoteCommand(args)), cmd.Run()
+	return cmd.String(), cmd.Run()
+}
+
+// commit commits the changes to git
+func commiOLD(msg string) error {
+	log.Info("commit")
+	log.Debug("commit", "msg", msg)
+	escapedMsg := shellescape.Quote(msg)
+	cmd := exec.Command("git", "commit", "-m", escapedMsg)
+
+	err := cmd.Run()
+	if err != nil {
+		log.Error("Error committing changes", "err", err, "msg", msg)
+		return err
+	}
+
+	return nil
 }
 
 func NewModel() Model {
@@ -101,7 +119,7 @@ func NewModel() Model {
 			huh.NewSelect[string]().
 				Title("Type").
 				Options(typeOptions...).
-				Value(&newCommit.Type).WithHeight(3),
+				Value(&newCommit.Type).WithHeight(5),
 			huh.NewInput().
 				Title("Scope").
 				CharLimit(16).
@@ -190,19 +208,14 @@ func (m Model) View() string {
 	switch m.form.State {
 	case huh.StateCompleted:
 		// Commit the changes
-		msg, err := commit(m.comm.String())
+		msg, err := commit(*m.comm.MessageString(), m.comm.Body)
 		if err != nil {
-			log.Error("Error committing changes", "err", err, "msg", msg)
-			os.Exit(1)
+			log.Error(err)
 		}
 
-		// Quit when the form is done.
-		return s.Base.Render(
-			m.appBoundaryView("Commit Message") + "\n" +
-				msg + "\n\n")
+		return s.Status.Copy().Margin(0, 1).Padding(1, 2).Width(80).Render(string(msg)) + "\n\n" + "---"
 
 	default:
-
 		// Form (left side)
 		v := strings.TrimSuffix(m.form.View(), "\n\n")
 		form := m.lg.NewStyle().Margin(1, 0).Render(v)
@@ -223,7 +236,7 @@ func (m Model) View() string {
 		}
 
 		errors := m.form.Errors()
-		header := m.appBoundaryView("Charm Employment Application")
+		header := m.appBoundaryView("Commit Message Helper")
 		if len(errors) > 0 {
 			header = m.appErrorBoundaryView(m.errorView())
 		}
@@ -272,8 +285,7 @@ func main() {
 	if os.Getenv("GENCOM_ENV") == "dev" {
 		f, err := tea.LogToFile("debug.log", "debug")
 		if err != nil {
-			fmt.Println("fatal:", err)
-			os.Exit(1)
+			log.Fatal("Error opening log file", "err", err)
 		}
 		log.SetOutput(f)
 		defer f.Close()
@@ -283,8 +295,7 @@ func main() {
 
 	_, err := tea.NewProgram(NewModel()).Run()
 	if err != nil {
-		fmt.Println("Oh no:", err)
-		os.Exit(1)
+		log.Fatal("Error running program", "err", err)
 	}
 }
 
