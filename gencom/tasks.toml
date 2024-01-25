@@ -1,0 +1,65 @@
+###################
+#  Go Tests
+###################
+
+[[task]]
+  id = "test"
+  description = "Run go tests"
+  type = "short"
+  cmd = """
+    go test ./...
+  """
+
+[[task]]
+  id = "test-vv"
+  description = "Run go tests wuth verbose output"
+  type = "short"
+  cmd = """
+    go test -v ./...
+  """
+
+[[task]]
+  id = "test-rr"
+  description = "Run go tests with race detection"
+  type = "short"
+  cmd = """
+    go test -race ./...
+  """
+
+[[task]]
+  id = "test-cc"
+  description = "Run go tests with coverage"
+  type = "short"
+  cmd = """
+    go test -coverprofile=reports/coverage.out ./...
+    go tool cover -html=reports/coverage.out -o reports/coverage.html
+  """
+
+
+###################
+#  Go Build
+###################
+
+[[task]]
+  id = "build"
+  description = "Build the binary"
+  type = "short"
+  cmd = """
+    go build -o bin/gencom cmd/gencom/main.go
+  """
+
+[[task]]
+  id = "serve"
+  description = "Run the whole app"
+  type = "short"
+  dependencies = ["build"]
+  cmd = """
+    ./bin/gencom
+  """
+
+[[task]]
+  id = "run-only"
+  type = "short"
+  cmd = """
+    go run cmd/gencom/main.go
+  """  
