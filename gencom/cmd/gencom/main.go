@@ -15,10 +15,9 @@ import (
 const maxWidth = 160
 
 var (
-	red    = lipgloss.AdaptiveColor{Light: "#FE5F86", Dark: "#FE5F86"}
-	indigo = lipgloss.AdaptiveColor{Light: "#5A56E0", Dark: "#7571F9"}
-	green  = lipgloss.AdaptiveColor{Light: "#02BA84", Dark: "#02BF87"}
-
+	red               = lipgloss.AdaptiveColor{Light: "#FE5F86", Dark: "#FE5F86"}
+	indigo            = lipgloss.AdaptiveColor{Light: "#5A56E0", Dark: "#7571F9"}
+	green             = lipgloss.AdaptiveColor{Light: "#02BA84", Dark: "#02BF87"}
 	shortCircuit      = false
 	useCommit         = false
 	CommitBuilderChan = make(chan gencom.Commit)
@@ -85,10 +84,11 @@ func NewModel() Model {
 				Value(&shortCircuit),
 		),
 		huh.NewGroup(
-			huh.NewSelect[string]().
+			huh.NewInput().
 				Title("Type").
-				Options(typeOptions...).
-				Value(&newCommit.Type).WithHeight(3),
+				Inline(true).
+				Value(&newCommit.Type).
+				Suggestions([]string{"feat", "fix", "docs", "test", "refactor"}),
 			huh.NewInput().
 				Title("Scope").
 				CharLimit(16).
@@ -136,13 +136,6 @@ func (m Model) Init() tea.Cmd {
 	return m.form.Init()
 }
 
-func min(x, y int) int {
-	if x > y {
-		return y
-	}
-	return x
-}
-
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -150,7 +143,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "ctrl+c", "q":
-			DoneChan <- struct{}{}
 			return m, tea.Quit
 		}
 	}
@@ -246,9 +238,17 @@ func (m Model) appErrorBoundaryView(text string) string {
 	)
 }
 
+func min(x, y int) int {
+	if x > y {
+		return y
+	}
+	return x
+}
+
 func main() {
 	log.SetLevel(log.DebugLevel)
 	log.SetReportCaller(true)
+
 	if os.Getenv("GENCOM_ENV") == "dev" {
 		f, err := tea.LogToFile("debug.log", "debug")
 		if err != nil {
@@ -259,68 +259,28 @@ func main() {
 	}
 
 	wrk := gencom.NewWorker()
-	go func() {
-		log.Print("Starting worker")
-		defer log.Print("Exiting worker")
+	log.Print("Starting worker")
+	err := wrk.Run()
+	if err != nil {
+		log.Fatal("Error running worker", "err", err)
+	}
+	log.Print("Worker finished", "commit", wrk.CommitData)
 
-		err := wrk.Run()
+	toCommit = wrk.CommitData
+	_, err = tea.NewProgram(NewModel()).Run()
+	if err != nil {
+		log.Fatal("Error running program", "err", err)
+	}
+
+	if useCommit {
+		log.Info("Running git commit")
+		_, err := gencom.Execute(toCommit)
 		if err != nil {
-			log.Fatal("Error running worker", "err", err)
+			log.Error("Error running git commit", "err", err)
 		}
+	} else {
+		log.Info("Skipping commit", "useCommit", useCommit, "shortCircuit", shortCircuit)
+	}
 
-		CommitBuilderChan <- *wrk.CommitData
-		log.Debug("Worker finished", "commit", wrk.CommitData)
-	}()
-
-	go func() {
-		log.Info("Starting gencom")
-		defer log.Info("Exiting gencom")
-
-		for {
-			select {
-			case <-DoneChan:
-				return
-			case recv := <-CommitBuilderChan:
-				toCommit = &recv
-				_, err := tea.NewProgram(NewModel()).Run()
-				if err != nil {
-					log.Fatal("Error running program", "err", err)
-				}
-				CommitReadyChan <- struct{}{}
-			}
-		}
-	}()
-
-	go func() {
-		log.Info("Waiting for commit")
-		for {
-			select {
-			case <-DoneChan:
-				return
-			case <-CommitReadyChan:
-				if !useCommit {
-					log.Info("Skipping commit")
-					DoneChan <- struct{}{}
-					continue
-				}
-				log.Info("Running git commit")
-				_, err := gencom.Execute(toCommit)
-				if err != nil {
-					log.Error("Error running git commit", "err", err)
-				}
-				DoneChan <- struct{}{}
-			}
-		}
-	}()
-
-	<-DoneChan
 	log.Info("Done")
-}
-
-var typeOptions = []huh.Option[string]{
-	huh.NewOption("feat", "feat"),
-	huh.NewOption("fix", "fix"),
-	huh.NewOption("docs", "docs"),
-	huh.NewOption("test", "test"),
-	huh.NewOption("refactor", "refactor"),
 }

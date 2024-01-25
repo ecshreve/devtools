@@ -33,7 +33,7 @@ Generate output with the following details:
 - DESC: A concise summary containing no more than 34 characters.
 - BODY: A detailed explanation of the changes suitable for the body of a git commit message.
 - TYPE: Classification of this set of changes as one of [fix, feat, test, docs, refactor, chore].
-- SCOPE: The area of the codebase most affected.
+- SCOPE: Single token identifying the area of the codebase most affected. SCOPE should never include spaces or punctuation.
 
 Git Diff:
 %s
