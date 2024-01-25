@@ -53,6 +53,7 @@ func (mg MockGitCommand) GetDiff() (string, error) {
 // ParseDiff takes a string containing a git diff and processes it.
 // It returns a string containing the diff with the leading '+' removed.
 func ParseDiff(diff string) string {
+	log.Info("ParseDiff")
 	var buf bytes.Buffer
 	scanner := bufio.NewScanner(strings.NewReader(diff))
 	lineCount := 0
@@ -78,12 +79,13 @@ func ParseDiff(diff string) string {
 			break
 		}
 	}
-	log.Debug("lines", "count", lineCount)
 
+	log.Debug("lines", "count", lineCount)
 	return buf.String()
 }
 
 func summarizeDiff(diff string) string {
+	log.Info("summarizeDiff")
 	lines := strings.Split(diff, "\n")
 	var summaryBuilder strings.Builder
 
@@ -114,5 +116,6 @@ func summarizeDiff(diff string) string {
 		}
 	}
 
+	log.Debug("summary", "summary", summaryBuilder.String())
 	return summaryBuilder.String()
 }

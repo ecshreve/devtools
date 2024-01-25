@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"gencom"
 	"os"
-	"os/exec"
 	"strings"
 
-	"github.com/alessio/shellescape"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -21,8 +19,12 @@ var (
 	indigo = lipgloss.AdaptiveColor{Light: "#5A56E0", Dark: "#7571F9"}
 	green  = lipgloss.AdaptiveColor{Light: "#02BA84", Dark: "#02BF87"}
 
-	shortCircuit = false
-	useCommit    = false
+	shortCircuit      = false
+	useCommit         = false
+	CommitBuilderChan = make(chan gencom.Commit)
+	CommitReadyChan   = make(chan struct{})
+	DoneChan          = make(chan struct{})
+	toCommit          *gencom.Commit
 )
 
 type Styles struct {
@@ -65,38 +67,7 @@ type Model struct {
 	styles *Styles
 	form   *huh.Form
 	comm   *gencom.Commit
-	wrk    *gencom.Worker
 	width  int
-}
-
-func commit(msg string, body string) (string, error) {
-	log.Info("commit")
-	args := append([]string{"commit", "-m", msg}, os.Args[1:]...)
-	if body != "" {
-		args = append(args, "-m", body)
-	}
-	cmd := exec.Command("git", args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.String(), cmd.Run()
-}
-
-// commit commits the changes to git
-func commiOLD(msg string) error {
-	log.Info("commit")
-	log.Debug("commit", "msg", msg)
-	escapedMsg := shellescape.Quote(msg)
-	cmd := exec.Command("git", "commit", "-m", escapedMsg)
-
-	err := cmd.Run()
-	if err != nil {
-		log.Error("Error committing changes", "err", err, "msg", msg)
-		return err
-	}
-
-	return nil
 }
 
 func NewModel() Model {
@@ -105,10 +76,8 @@ func NewModel() Model {
 	m.lg = lipgloss.DefaultRenderer()
 	m.styles = NewStyles(m.lg)
 
-	m.wrk = gencom.NewWorker()
-	newCommit := m.wrk.Run()
+	newCommit := toCommit
 	m.comm = newCommit
-
 	m.form = huh.NewForm(
 		huh.NewGroup(
 			huh.NewConfirm().
@@ -119,7 +88,7 @@ func NewModel() Model {
 			huh.NewSelect[string]().
 				Title("Type").
 				Options(typeOptions...).
-				Value(&newCommit.Type).WithHeight(5),
+				Value(&newCommit.Type).WithHeight(3),
 			huh.NewInput().
 				Title("Scope").
 				CharLimit(16).
@@ -208,12 +177,9 @@ func (m Model) View() string {
 	switch m.form.State {
 	case huh.StateCompleted:
 		// Commit the changes
-		msg, err := commit(*m.comm.MessageString(), m.comm.Body)
-		if err != nil {
-			log.Error(err)
-		}
+		log.Debug("committing", "commit", m.comm, "useCommit", useCommit)
 
-		return s.Status.Copy().Margin(0, 1).Padding(1, 2).Width(80).Render(string(msg)) + "\n\n" + "---"
+		return s.Status.Copy().Margin(0, 1).Padding(1, 2).Width(80).Render(m.comm.String()) + "\n\n" + "---"
 
 	default:
 		// Form (left side)
@@ -227,7 +193,7 @@ func (m Model) View() string {
 			const statusWidth = 74
 			statusMarginLeft := m.width - statusWidth - lipgloss.Width(form) - s.Status.GetMarginRight()
 			status = s.Status.Copy().
-				Height(lipgloss.Height(m.comm.String())).
+				Height(10).
 				Width(statusWidth).
 				MarginLeft(statusMarginLeft).
 				Render(s.StatusHeader.Render("|------------------------------------------- 50 >|" + "\n|\n" +
@@ -291,12 +257,48 @@ func main() {
 		defer f.Close()
 	}
 
-	log.Print("Starting gencom")
+	wrk := gencom.NewWorker()
+	go func() {
+		log.Print("Starting worker")
+		defer log.Print("Exiting worker")
 
-	_, err := tea.NewProgram(NewModel()).Run()
-	if err != nil {
-		log.Fatal("Error running program", "err", err)
-	}
+		err := wrk.Run()
+		if err != nil {
+			log.Fatal("Error running worker", "err", err)
+		}
+
+		CommitBuilderChan <- *wrk.CommitData
+		log.Debug("Worker finished", "commit", wrk.CommitData)
+	}()
+
+	go func() {
+		log.Info("Starting gencom")
+		defer log.Info("Exiting gencom")
+
+		recv := <-CommitBuilderChan
+		toCommit = &recv
+		_, err := tea.NewProgram(NewModel()).Run()
+		if err != nil {
+			log.Fatal("Error running program", "err", err)
+		}
+
+		CommitReadyChan <- struct{}{}
+	}()
+
+	go func() {
+		log.Info("Waiting for commit")
+		<-CommitReadyChan
+		log.Info("Running git commit")
+		_, err := gencom.Execute(toCommit)
+		if err != nil {
+			log.Error("Error running git commit", "err", err)
+		}
+		DoneChan <- struct{}{}
+		log.Info("Done running git commit")
+	}()
+
+	<-DoneChan
+	log.Info("Done")
 }
 
 var typeOptions = []huh.Option[string]{

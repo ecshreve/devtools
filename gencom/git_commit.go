@@ -1,29 +1,37 @@
 package gencom
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"os/exec"
+
+	"github.com/charmbracelet/log"
+)
 
 type Commit struct {
-	Type             string
-	Scope            string
-	Desc             string
-	Body             string
-	Footer           string
-	DoesWantToCommit bool
+	Type   string
+	Scope  string
+	Desc   string
+	Body   string
+	Footer string
 }
 
-// Message returns the commit message.
-func (c Commit) MessageString() *string {
+func (c Commit) Parts() (string, string, string) {
 	out := c.Type
 	if c.Scope != "" {
 		out = fmt.Sprintf("%s(%s)", out, c.Scope)
 	}
 	out += ": " + c.Desc
 
-	return &out
+	return out, c.Body, c.Footer
 }
 
 func (c Commit) String() string {
-	out := *c.MessageString()
+	out := c.Type
+	if c.Scope != "" {
+		out = fmt.Sprintf("%s(%s)", out, c.Scope)
+	}
+	out += ": " + c.Desc
 
 	if c.Body != "" {
 		out += "\n\n" + c.Body
@@ -49,4 +57,21 @@ interactive experience when generating commit messages.
 - Added form to handle user input`,
 		Footer: "",
 	}
+}
+
+func Execute(c *Commit) (string, error) {
+	log.Info("commit")
+	msg, body, _ := c.Parts()
+	args := []string{"commit", "-m", msg}
+	if body != "" {
+		args = append(args, "-m", body)
+	}
+
+	cmd := exec.Command("git", args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	log.Debug("commit", "cmd", cmd)
+	return fmt.Sprintf("git %v", args), cmd.Run()
 }
