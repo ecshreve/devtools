@@ -189,8 +189,8 @@ func (m Model) View() string {
 				Height(10).
 				Width(statusWidth).
 				MarginLeft(statusMarginLeft).
-				Render(s.StatusHeader.Render("|------------------------------------------- 50 >|" + "\n|\n" +
-					m.comm.String() + "\n|\n" +
+				Render(s.StatusHeader.Render("|------------------------------------------- 50 >|" + "\n\n" +
+					m.comm.String() + "\n\n" +
 					"|----------------------------------------------------------------- 72 >|"))
 		}
 
@@ -199,7 +199,7 @@ func (m Model) View() string {
 		if len(errors) > 0 {
 			header = m.appErrorBoundaryView(m.errorView())
 		}
-		body := lipgloss.JoinHorizontal(lipgloss.Top, status, form)
+		body := lipgloss.JoinHorizontal(lipgloss.Top, form, status)
 
 		footer := m.appBoundaryView(m.form.Help().ShortHelpView(m.form.KeyBinds()))
 		if len(errors) > 0 {

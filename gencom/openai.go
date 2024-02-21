@@ -49,9 +49,9 @@ Format the response as a JSON dictionary:
 	p := fmt.Sprintf(promptTemplate, diff)
 
 	req := openai.ChatCompletionRequest{
-		Model:     openai.GPT3Dot5Turbo,
+		Model:     openai.GPT40613,
 		Seed:      nil,
-		MaxTokens: 2048,
+		MaxTokens: 2400,
 		Messages: []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleSystem,

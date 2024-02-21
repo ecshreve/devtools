@@ -1,0 +1,70 @@
+diff --git a/gencom/git_commit.go b/gencom/git_commit.go
+index 54e43d2..61f65cf 100644
+--- a/gencom/git_commit.go
++++ b/gencom/git_commit.go
+@@ -10,0 +11 @@ import (
++// Commit describes a git commit.
+@@ -12,15 +13,5 @@ type Commit struct {
+-	Type   string
+-	Scope  string
+-	Desc   string
+-	Body   string
+-	Footer string
+-}
+-
+-func (c Commit) Parts() (string, string, string) {
+-	out := c.Type
+-	if c.Scope != "" {
+-		out = fmt.Sprintf("%s(%s)", out, c.Scope)
+-	}
+-	out += ": " + c.Desc
+-
+-	return out, c.Body, c.Footer
++	Type   string `json:"type"`
++	Scope  string `json:"scope"`
++	Desc   string `json:"desc"`
++	Body   string `json:"body"`
++	Footer string `json:"footer"`
+@@ -61,0 +53 @@ interactive experience when generating commit messages.
++// Execute runs the git commit command.
+@@ -64 +56 @@ func Execute(c *Commit) (string, error) {
+-	msg, body, _ := c.Parts()
++	msg := c.String()
+@@ -66,3 +57,0 @@ func Execute(c *Commit) (string, error) {
+-	if body != "" {
+-		args = append(args, "-m", body)
+-	}
+diff --git a/gencom/git.go b/gencom/git_diff.go
+similarity index 78%
+rename from gencom/git.go
+rename to gencom/git_diff.go
+index 2363421..ec59919 100644
+--- a/gencom/git.go
++++ b/gencom/git_diff.go
+@@ -14 +14,3 @@ import (
+-type GitInterface interface {
++// GitClient is an interface that describes the methods
++// that are used to interact with git.
++type GitClient interface {
+@@ -17,0 +20 @@ type GitInterface interface {
++// GitCommand is a struct that implements GitClient.
+@@ -20 +23,4 @@ type GitCommand struct{}
+-func NewGitCommand() GitInterface {
++// NewGitCommand creates a new instance of GitCommand
++// and returns it as a GitClient. This is useful for
++// mocking the GitCommand struct in other tests.
++func NewGitCommand() GitClient {
+@@ -23,0 +30,2 @@ func NewGitCommand() GitInterface {
++// GetDiff gets the string representation of the git diff for
++// the currently staged changes.
+@@ -39,0 +48,4 @@ func (g GitCommand) GetDiff() (string, error) {
++// MockGitCommand is a mock implementation of GitClient
++// that can be used for testing.
++//
++// TODO: This is a bit of a hack. Revisit this.
+@@ -43,0 +56,2 @@ type MockGitCommand struct {
++// GetDiff gets the string representation of the git diff for
++// for the mock.
+@@ -86,0 +101,2 @@ func ParseDiff(diff string) string {
++// summarizeDiff takes a string containing a git diff and processes it.
++// It returns a string containing a cleaner version of the diff.

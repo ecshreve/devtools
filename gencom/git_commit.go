@@ -8,22 +8,13 @@ import (
 	"github.com/charmbracelet/log"
 )
 
+// Commit describes a git commit.
 type Commit struct {
-	Type   string
-	Scope  string
-	Desc   string
-	Body   string
-	Footer string
-}
-
-func (c Commit) Parts() (string, string, string) {
-	out := c.Type
-	if c.Scope != "" {
-		out = fmt.Sprintf("%s(%s)", out, c.Scope)
-	}
-	out += ": " + c.Desc
-
-	return out, c.Body, c.Footer
+	Type   string `json:"type"`
+	Scope  string `json:"scope"`
+	Desc   string `json:"desc"`
+	Body   string `json:"body"`
+	Footer string `json:"footer"`
 }
 
 func (c Commit) String() string {
@@ -59,13 +50,11 @@ interactive experience when generating commit messages.
 	}
 }
 
+// Execute runs the git commit command.
 func Execute(c *Commit) (string, error) {
 	log.Info("Execute")
-	msg, body, _ := c.Parts()
+	msg := c.String()
 	args := []string{"commit", "-m", msg}
-	if body != "" {
-		args = append(args, "-m", body)
-	}
 
 	cmd := exec.Command("git", args...)
 	cmd.Stdin = os.Stdin

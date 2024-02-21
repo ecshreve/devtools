@@ -11,16 +11,24 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-type GitInterface interface {
+// GitClient is an interface that describes the methods
+// that are used to interact with git.
+type GitClient interface {
 	GetDiff() (string, error)
 }
 
+// GitCommand is a struct that implements GitClient.
 type GitCommand struct{}
 
-func NewGitCommand() GitInterface {
+// NewGitCommand creates a new instance of GitCommand
+// and returns it as a GitClient. This is useful for
+// mocking the GitCommand struct in other tests.
+func NewGitCommand() GitClient {
 	return GitCommand{}
 }
 
+// GetDiff gets the string representation of the git diff for
+// the currently staged changes.
 func (g GitCommand) GetDiff() (string, error) {
 	log.Info("GitCommand.GetDiff")
 	cmd := exec.Command("git", "diff", "--cached", "--unified=0")
@@ -37,10 +45,16 @@ func (g GitCommand) GetDiff() (string, error) {
 	return string(output), err
 }
 
+// MockGitCommand is a mock implementation of GitClient
+// that can be used for testing.
+//
+// TODO: This is a bit of a hack. Revisit this.
 type MockGitCommand struct {
 	Diff string
 }
 
+// GetDiff gets the string representation of the git diff for
+// for the mock.
 func (mg MockGitCommand) GetDiff() (string, error) {
 	log.Info("MockGitCommand.GetDiff")
 	if mg.Diff == "" {
@@ -84,6 +98,8 @@ func ParseDiff(diff string) string {
 	return buf.String()
 }
 
+// summarizeDiff takes a string containing a git diff and processes it.
+// It returns a string containing a cleaner version of the diff.
 func summarizeDiff(diff string) string {
 	log.Info("summarizeDiff")
 	lines := strings.Split(diff, "\n")

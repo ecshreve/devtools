@@ -1,0 +1,338 @@
+diff --git a/gencom/README.md b/gencom/README.md
+index 5c647ec..98cc7a8 100644
+--- a/gencom/README.md
++++ b/gencom/README.md
+@@ -5 +5,3 @@ A small tool to generate conventional commits with OpenAI API.
+-It generates a commit message for the currently staged changes
++## Usage
++
++GenCom creates a commit message for the currently staged changes
+@@ -6,0 +9,26 @@ and provides a TUI for the user to edit before committing.
++
++
++```bash
++git add somefile.go
++git add someOtherFile.go
++gencom
++```
++
++
++![out](./assets/out.gif)
++
++
++## What are Conventional Commits?
++
++> The [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/) is a lightweight convention on top of commit messages. It provides an easy set of rules for creating an explicit commit history; which makes it easier to write automated tools on top of. This convention dovetails with SemVer, by describing the features, fixes, and breaking changes made in commit messages.
++>
++>The commit message should be structured as follows:
++>
++> ```
++> <type>[optional scope]: <description>
++> 
++> [optional body]
++> 
++> [optional footer(s)]
++> ```
++
+diff --git a/gencom/assets/cassette.tape b/gencom/assets/cassette.tape
+new file mode 100644
+index 0000000..cd6ab8f
+--- /dev/null
++++ b/gencom/assets/cassette.tape
+@@ -0,0 +1,52 @@
++Output out2.gif
++
++Set Shell fish
++Set Width 2000
++Hide
++Type "go build -o gencom cmd/gencom/main.go"
++Enter
++Type "clear"
++Enter
++Sleep 3s
++Show
++
++Set TypingSpeed 0.5s
++Type "./gencom"
++Enter
++Sleep 5s
++
++# Don't skip editing
++Enter
++Sleep 3s
++
++# Change the type
++Backspace 10
++Sleep 2s
++Type "demo"
++Sleep 2s
++Enter
++Sleep 2s
++
++# Use the given scope
++Enter
++Sleep 2s
++
++# Delete from Desc
++Backspace 10
++Enter
++Sleep 2s
++
++# Edit Body
++Backspace 10
++Sleep 1s
++Type "add something"
++Enter
++Sleep 2s
++
++# Don't use the message
++Enter
++Sleep 2s
++
++Type "git status"
++Enter
++Sleep 3s
+\ No newline at end of file
+diff --git a/gencom/assets/out.gif b/gencom/assets/out.gif
+new file mode 100644
+index 0000000..d8ad633
+Binary files /dev/null and b/gencom/assets/out.gif differ
+diff --git a/gencom/cmd/gencom/main.go b/gencom/cmd/gencom/main.go
+index 4f121bb..071c706 100644
+--- a/gencom/cmd/gencom/main.go
++++ b/gencom/cmd/gencom/main.go
+@@ -192,2 +192,2 @@ func (m Model) View() string {
+-				Render(s.StatusHeader.Render("|------------------------------------------- 50 >|" + "\n|\n" +
+-					m.comm.String() + "\n|\n" +
++				Render(s.StatusHeader.Render("|------------------------------------------- 50 >|" + "\n\n" +
++					m.comm.String() + "\n\n" +
+@@ -202 +202 @@ func (m Model) View() string {
+-		body := lipgloss.JoinHorizontal(lipgloss.Top, status, form)
++		body := lipgloss.JoinHorizontal(lipgloss.Top, form, status)
+diff --git a/gencom/git_commit.go b/gencom/git_commit.go
+index 54e43d2..61f65cf 100644
+--- a/gencom/git_commit.go
++++ b/gencom/git_commit.go
+@@ -10,0 +11 @@ import (
++// Commit describes a git commit.
+@@ -12,15 +13,5 @@ type Commit struct {
+-	Type   string
+-	Scope  string
+-	Desc   string
+-	Body   string
+-	Footer string
+-}
+-
+-func (c Commit) Parts() (string, string, string) {
+-	out := c.Type
+-	if c.Scope != "" {
+-		out = fmt.Sprintf("%s(%s)", out, c.Scope)
+-	}
+-	out += ": " + c.Desc
+-
+-	return out, c.Body, c.Footer
++	Type   string `json:"type"`
++	Scope  string `json:"scope"`
++	Desc   string `json:"desc"`
++	Body   string `json:"body"`
++	Footer string `json:"footer"`
+@@ -61,0 +53 @@ interactive experience when generating commit messages.
++// Execute runs the git commit command.
+@@ -64 +56 @@ func Execute(c *Commit) (string, error) {
+-	msg, body, _ := c.Parts()
++	msg := c.String()
+@@ -66,3 +57,0 @@ func Execute(c *Commit) (string, error) {
+-	if body != "" {
+-		args = append(args, "-m", body)
+-	}
+diff --git a/gencom/git.go b/gencom/git_diff.go
+similarity index 78%
+rename from gencom/git.go
+rename to gencom/git_diff.go
+index 2363421..ec59919 100644
+--- a/gencom/git.go
++++ b/gencom/git_diff.go
+@@ -14 +14,3 @@ import (
+-type GitInterface interface {
++// GitClient is an interface that describes the methods
++// that are used to interact with git.
++type GitClient interface {
+@@ -17,0 +20 @@ type GitInterface interface {
++// GitCommand is a struct that implements GitClient.
+@@ -20 +23,4 @@ type GitCommand struct{}
+-func NewGitCommand() GitInterface {
++// NewGitCommand creates a new instance of GitCommand
++// and returns it as a GitClient. This is useful for
++// mocking the GitCommand struct in other tests.
++func NewGitCommand() GitClient {
+@@ -23,0 +30,2 @@ func NewGitCommand() GitInterface {
++// GetDiff gets the string representation of the git diff for
++// the currently staged changes.
+@@ -39,0 +48,4 @@ func (g GitCommand) GetDiff() (string, error) {
++// MockGitCommand is a mock implementation of GitClient
++// that can be used for testing.
++//
++// TODO: This is a bit of a hack. Revisit this.
+@@ -43,0 +56,2 @@ type MockGitCommand struct {
++// GetDiff gets the string representation of the git diff for
++// for the mock.
+@@ -86,0 +101,2 @@ func ParseDiff(diff string) string {
++// summarizeDiff takes a string containing a git diff and processes it.
++// It returns a string containing a cleaner version of the diff.
+diff --git a/gencom/openai.go b/gencom/openai.go
+index 0d06270..2406543 100644
+--- a/gencom/openai.go
++++ b/gencom/openai.go
+@@ -52 +52 @@ Format the response as a JSON dictionary:
+-		Model:     openai.GPT3Dot5Turbo,
++		Model:     openai.GPT40613,
+@@ -54 +54 @@ Format the response as a JSON dictionary:
+-		MaxTokens: 2048,
++		MaxTokens: 2400,
+diff --git a/gencom/tmp.txtcl b/gencom/tmp.txtcl
+new file mode 100644
+index 0000000..9167464
+--- /dev/null
++++ b/gencom/tmp.txtcl
+@@ -0,0 +1,70 @@
++diff --git a/gencom/git_commit.go b/gencom/git_commit.go
++index 54e43d2..61f65cf 100644
++--- a/gencom/git_commit.go
+++++ b/gencom/git_commit.go
++@@ -10,0 +11 @@ import (
+++// Commit describes a git commit.
++@@ -12,15 +13,5 @@ type Commit struct {
++-	Type   string
++-	Scope  string
++-	Desc   string
++-	Body   string
++-	Footer string
++-}
++-
++-func (c Commit) Parts() (string, string, string) {
++-	out := c.Type
++-	if c.Scope != "" {
++-		out = fmt.Sprintf("%s(%s)", out, c.Scope)
++-	}
++-	out += ": " + c.Desc
++-
++-	return out, c.Body, c.Footer
+++	Type   string `json:"type"`
+++	Scope  string `json:"scope"`
+++	Desc   string `json:"desc"`
+++	Body   string `json:"body"`
+++	Footer string `json:"footer"`
++@@ -61,0 +53 @@ interactive experience when generating commit messages.
+++// Execute runs the git commit command.
++@@ -64 +56 @@ func Execute(c *Commit) (string, error) {
++-	msg, body, _ := c.Parts()
+++	msg := c.String()
++@@ -66,3 +57,0 @@ func Execute(c *Commit) (string, error) {
++-	if body != "" {
++-		args = append(args, "-m", body)
++-	}
++diff --git a/gencom/git.go b/gencom/git_diff.go
++similarity index 78%
++rename from gencom/git.go
++rename to gencom/git_diff.go
++index 2363421..ec59919 100644
++--- a/gencom/git.go
+++++ b/gencom/git_diff.go
++@@ -14 +14,3 @@ import (
++-type GitInterface interface {
+++// GitClient is an interface that describes the methods
+++// that are used to interact with git.
+++type GitClient interface {
++@@ -17,0 +20 @@ type GitInterface interface {
+++// GitCommand is a struct that implements GitClient.
++@@ -20 +23,4 @@ type GitCommand struct{}
++-func NewGitCommand() GitInterface {
+++// NewGitCommand creates a new instance of GitCommand
+++// and returns it as a GitClient. This is useful for
+++// mocking the GitCommand struct in other tests.
+++func NewGitCommand() GitClient {
++@@ -23,0 +30,2 @@ func NewGitCommand() GitInterface {
+++// GetDiff gets the string representation of the git diff for
+++// the currently staged changes.
++@@ -39,0 +48,4 @@ func (g GitCommand) GetDiff() (string, error) {
+++// MockGitCommand is a mock implementation of GitClient
+++// that can be used for testing.
+++//
+++// TODO: This is a bit of a hack. Revisit this.
++@@ -43,0 +56,2 @@ type MockGitCommand struct {
+++// GetDiff gets the string representation of the git diff for
+++// for the mock.
++@@ -86,0 +101,2 @@ func ParseDiff(diff string) string {
+++// summarizeDiff takes a string containing a git diff and processes it.
+++// It returns a string containing a cleaner version of the diff.
+diff --git a/gencom/utils.go b/gencom/utils.go
+index a8a9a70..4233446 100644
+--- a/gencom/utils.go
++++ b/gencom/utils.go
+@@ -4,0 +5 @@ import (
++	"os/exec"
+@@ -36,0 +38,18 @@ func foldString(s string, lineWidth int) string {
++
++// checkRequiredCommands checks if the required commands are installed.
++func checkRequiredCommands(cmds []string) {
++	// Check if cmds are installed
++	for _, cmd := range cmds {
++		_, err := exec.LookPath(cmd)
++		if err != nil {
++			log.Fatal("command is not installed.", "cmd", cmd)
++		}
++	}
++}
++
++// checkOpenAIKey checks if the OPENAI_API_KEY environment variable is set.
++func checkOpenAIKey() {
++	if os.Getenv("OPENAI_API_KEY") == "" {
++		log.Fatal("OPENAI_API_KEY environment variable is not set.")
++	}
++}
+diff --git a/gencom/worker.go b/gencom/worker.go
+index 249f35e..f7bee10 100644
+--- a/gencom/worker.go
++++ b/gencom/worker.go
+@@ -6 +5,0 @@ import (
+-	"os/exec"
+@@ -10,0 +10,2 @@ import (
++// Worker is a struct that describes the worker that
++// generates the commit message.
+@@ -12 +13 @@ type Worker struct {
+-	git    GitInterface
++	git    GitClient
+@@ -17,0 +19 @@ type Worker struct {
++// NewWorker creates a new instance of Worker.
+@@ -22 +24 @@ func NewWorker() *Worker {
+-	var gc GitInterface
++	var gc GitClient
+@@ -41,0 +44 @@ func NewWorker() *Worker {
++// Run runs the worker.
+@@ -43,0 +47 @@ func (w *Worker) Run() error {
++
+@@ -50,0 +55 @@ func (w *Worker) Run() error {
++	// Process the diff
+@@ -61,0 +67 @@ func (w *Worker) Run() error {
++	// Unmarshal the commit message
+@@ -68,0 +75 @@ func (w *Worker) Run() error {
++	// Post-process the commit message
+@@ -71 +77,0 @@ func (w *Worker) Run() error {
+-	log.Debug("Worker.Run", "commit", w.CommitData)
+@@ -74,16 +79,0 @@ func (w *Worker) Run() error {
+-
+-func checkRequiredCommands(cmds []string) {
+-	// Check if cmds are installed
+-	for _, cmd := range cmds {
+-		_, err := exec.LookPath(cmd)
+-		if err != nil {
+-			log.Fatal("command is not installed.", "cmd", cmd)
+-		}
+-	}
+-}
+-
+-func checkOpenAIKey() {
+-	if os.Getenv("OPENAI_API_KEY") == "" {
+-		log.Fatal("OPENAI_API_KEY environment variable is not set.")
+-	}
+-}

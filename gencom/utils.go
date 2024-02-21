@@ -2,6 +2,7 @@ package gencom
 
 import (
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -33,4 +34,22 @@ func foldString(s string, lineWidth int) string {
 		}
 	}
 	return wrapped
+}
+
+// checkRequiredCommands checks if the required commands are installed.
+func checkRequiredCommands(cmds []string) {
+	// Check if cmds are installed
+	for _, cmd := range cmds {
+		_, err := exec.LookPath(cmd)
+		if err != nil {
+			log.Fatal("command is not installed.", "cmd", cmd)
+		}
+	}
+}
+
+// checkOpenAIKey checks if the OPENAI_API_KEY environment variable is set.
+func checkOpenAIKey() {
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		log.Fatal("OPENAI_API_KEY environment variable is not set.")
+	}
 }
