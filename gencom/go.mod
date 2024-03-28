@@ -3,12 +3,10 @@ module gencom
 go 1.21.5
 
 require (
-	github.com/alessio/shellescape v1.4.2
 	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/huh v0.2.4-0.20240124155233-4eb665fa3904
 	github.com/charmbracelet/lipgloss v0.9.1
 	github.com/charmbracelet/log v0.3.1
-	github.com/fatih/color v1.16.0
 	github.com/sashabaranov/go-openai v1.18.3
 	github.com/stretchr/testify v1.8.4
 )
@@ -22,7 +20,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
