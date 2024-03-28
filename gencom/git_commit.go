@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/charmbracelet/log"
 )
@@ -25,7 +26,7 @@ func (c Commit) String() string {
 	out += ": " + c.Desc
 
 	if c.Body != "" {
-		out += "\n\n" + c.Body
+		out += "\n\n" + strings.TrimPrefix(c.Body, "\n")
 	}
 
 	if c.Footer != "" {

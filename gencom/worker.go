@@ -3,6 +3,7 @@ package gencom
 import (
 	"encoding/json"
 	"os"
+	"strings"
 
 	"github.com/charmbracelet/log"
 )
@@ -64,6 +65,10 @@ func (w *Worker) Run() error {
 		return err
 	}
 
+	commitMessage = strings.ReplaceAll(commitMessage, "```", "")
+	commitMessage = strings.TrimPrefix(commitMessage, "json")
+	log.Debug("commitMessage", "commitMessage", commitMessage)
+
 	// Unmarshal the commit message
 	var cmt Commit
 	err = json.Unmarshal([]byte(commitMessage), &cmt)
@@ -73,7 +78,12 @@ func (w *Worker) Run() error {
 	}
 
 	// Post-process the commit message
-	cmt.Body = foldString(cmt.Body, 72)
+	lines := strings.Split(cmt.Body, "- ")
+
+	for i, line := range lines {
+		lines[i] = foldString(line, 72)
+	}
+	cmt.Body = strings.Join(lines, "\n- ")
 	w.CommitData = &cmt
 	return nil
 }

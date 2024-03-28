@@ -1,14 +1,56 @@
-###################
-#  Go Tests
-###################
+[[task]]
+  id = "dev"
+  type = "long"
+  description = "Run the Go application in development mode."
+  dependencies = ["start"]
+  cmd = """
+    echo "Running development mode..."
+    while true; do sleep 1; done
+  """
+
+[[task]]
+  id = "start"
+  type = "short"
+  description = "Run the binary."
+  dependencies = ["build"]
+  watch = ["bin/app"]
+  cmd = """
+    ./bin/app
+  """
+
+[[task]]
+  id = "build"
+  type = "short"
+  description = "Build the binary for the Go application."
+  watch = ["**/*.go"]
+  cmd = """
+    go build -o ./bin/app ./cmd/...
+  """
 
 [[task]]
   id = "test"
-  description = "Run go tests"
   type = "short"
+  description = "Run all Go tests."
   cmd = """
     go test ./...
+    echo "Testing complete."
   """
+
+[[task]]
+  id = "clean"
+  type = "short"
+  description = "Remove the binary and clean the Go test and module cache."
+  cmd = """
+    set -x
+
+    rm -rf ./bin
+    go clean -testcache
+    go clean -modcache
+  """
+
+#-------------------------------------------------------------------------------
+#  Go Test Variants
+#-------------------------------------------------------------------------------
 
 [[task]]
   id = "test-vv"
@@ -34,32 +76,3 @@
     go test -coverprofile=reports/coverage.out ./...
     go tool cover -html=reports/coverage.out -o reports/coverage.html
   """
-
-
-###################
-#  Go Build
-###################
-
-[[task]]
-  id = "build"
-  description = "Build the binary"
-  type = "short"
-  cmd = """
-    go build -o bin/gencom cmd/gencom/main.go
-  """
-
-[[task]]
-  id = "serve"
-  description = "Run the whole app"
-  type = "short"
-  dependencies = ["build"]
-  cmd = """
-    ./bin/gencom
-  """
-
-[[task]]
-  id = "run-only"
-  type = "short"
-  cmd = """
-    go run cmd/gencom/main.go
-  """  
